@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notiflex-api
+  namespace: notiflex
+  labels:
+    app: notiflex-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notiflex-api
+  template:
+    metadata:
+      labels:
+        app: notiflex-api
+    spec:
+      containers:
+        - name: notiflex-api
+          image: asia-northeast3-docker.pkg.dev/my-gitaiops/notiflex/api:v0.1.0
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
