@@ -56,6 +56,19 @@
 
 ## 현재 리소스
 
+✅ **2026-07-11 재개 완료 — GCP 리소스 재생성**: 2.5(클러스터) → 2.6(Artifact Registry + 빌드/배포) 재실행. GKE `notiflex-cluster`(asia-northeast3-a, e2-medium Spot × 2, Gateway API standard) RUNNING, 컨텍스트 `gke-sysnet4admin_book_gitaiops`로 등록. Artifact Registry `notiflex` 재생성, 이미지 `api:v0.1.0` 빌드·푸시(Cloud Build). `notiflex` 네임스페이스 Pod 2/2 Running, `/health`·`/id` 정상 확인. 이제 3장부터 이어서 진행 가능.
+
+<details><summary>이전 이력 (2026-07-05, 재개 → 재정리)</summary>
+
+> ⚠️ **2026-07-05 비용 절감을 위해 GCP 리소스 전체 정리됨** (재개 → 재정리). 저장소 코드(`app/`, `k8s/`)는 유지.
+>   - 삭제: GKE 클러스터 `notiflex-cluster`(노드 인스턴스·부트 디스크 함께 정리) + Artifact Registry `notiflex`
+>   - 로컬 kubeconfig 컨텍스트 `gke-sysnet4admin_book_gitaiops` 삭제
+> ✅ **2026-07-05 전체 스윕 검증 완료** — `my-gitaiops` 프로젝트에서 실습 생성 리소스가 하나도 남아있지 않음을 확인. 점검 항목: GKE 클러스터·Artifact Registry·Service Account(notiflex/github-ci)·Secret Manager·Compute 인스턴스/디스크·Forwarding Rule·Target Proxy·URL Map·Address·Backend Service·Health Check → 전부 없음. (`Compute Engine default SA`는 시스템 계정으로 유지). ch3+ 리소스는 애초에 미생성.
+>
+> ✅ **재개 완료 — GCP 리소스 재생성**: 2.5(클러스터) → 2.6(Artifact Registry + 빌드/배포) 재실행. GKE `notiflex-cluster`(e2-medium Spot × 2) RUNNING, 이미지 `api:v0.1.0` 빌드·푸시, `notiflex` 네임스페이스 Pod 2/2 Running, `/health`·`/id` 정상 확인.
+> ⚠️ 이후 다시 비용 절감을 위해 위와 같이 전체 정리함.
+> </details>
+
 | 노드풀 | 머신 타입 | 노드 수 | 주요 워크로드 |
 |--------|----------|---------|-------------|
 | default-pool | e2-medium (Spot) | 2 | notiflex-api |
