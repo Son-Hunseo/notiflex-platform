@@ -56,6 +56,8 @@
 
 ## 현재 리소스
 
+✅ **2026-07-11 다른 컴퓨터로 환경 이전 완료**: 기존 GCP 리소스(GKE `notiflex-cluster`, Artifact Registry `notiflex`)는 그대로 재사용. 새 컴퓨터에서 로컬 환경만 재구성 — gcloud 기본 zone/region 설정(asia-northeast3-a/asia-northeast3), Docker Artifact Registry 인증(`gcloud auth configure-docker`), `gke-gcloud-auth-plugin` 설치, kubectl 컨텍스트 `gke-sysnet4admin_book_gitaiops` 등록(기존 로컬 `home-server` 컨텍스트는 유지). notiflex-platform 저장소는 이미 클론되어 있었고 origin과 동기화 상태 확인. `notiflex` 네임스페이스 Pod 2/2 Running, `/health`·`/id` 재확인. 3장부터 이어서 진행 가능.
+
 ✅ **2026-07-11 재개 완료 — GCP 리소스 재생성**: 2.5(클러스터) → 2.6(Artifact Registry + 빌드/배포) 재실행. GKE `notiflex-cluster`(asia-northeast3-a, e2-medium Spot × 2, Gateway API standard) RUNNING, 컨텍스트 `gke-sysnet4admin_book_gitaiops`로 등록. Artifact Registry `notiflex` 재생성, 이미지 `api:v0.1.0` 빌드·푸시(Cloud Build). `notiflex` 네임스페이스 Pod 2/2 Running, `/health`·`/id` 정상 확인. 이제 3장부터 이어서 진행 가능.
 
 <details><summary>이전 이력 (2026-07-05, 재개 → 재정리)</summary>
