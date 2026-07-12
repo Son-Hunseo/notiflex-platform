@@ -26,6 +26,7 @@ notiflex-platform/
 ├── app/           # Go 애플리케이션
 ├── k8s/
 │   └── smb/       # K8s 매니페스트
+├── argocd/        # ArgoCD Application 매니페스트
 └── .github/
     └── workflows/ # CI 파이프라인
 ```
