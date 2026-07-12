@@ -14,8 +14,8 @@
 | ch2 | 2.7 첫 커밋 | ✅ | 2026-07-05 | |
 | ch3 | 3.2 GitOps 도구 | ✅ | 2026-07-12 | ArgoCD v3.4.5, notiflex-smb Application Synced/Healthy |
 | ch3 | 3.3 기능 추가 | ✅ | 2026-07-12 | `/version` 엔드포인트 추가, api:v0.1.1 롤링 업데이트 배포 |
-| ch3 | 3.4 CI | ⬜ | | |
-| ch3 | 3.5 CI-CD 연결 | ⬜ | | |
+| ch3 | 3.4 CI | ✅ | 2026-07-12 | `.github/workflows/ci.yaml` (방식 A: docker build+push), GCP_PROJECT_ID/GCP_SA_KEY Secret 등록, github-ci SA에 artifactregistry.writer 권한 확인 |
+| ch3 | 3.5 CI-CD 연결 | ✅ | 2026-07-12 | CI가 매니페스트 이미지 태그 자동 업데이트 후 git push, ArgoCD 자동 Sync. api:v0.1.2(sha-aed9c36)로 e2e 검증 완료 |
 | ch4 | 4.2 메트릭 모니터링 | ⬜ | | |
 | ch4 | 4.3 로그 수집 | ⬜ | | |
 | ch4 | 4.4 알림 | ⬜ | | |
@@ -49,7 +49,7 @@
 | 컴포넌트 | 버전 | 변경 이력 |
 |---------|------|----------|
 | Go | 1.25 | 초기 설정 (2.6) |
-| Notiflex 이미지 | api:v0.1.1 | `/version` 엔드포인트 추가, 롤링 업데이트 (3.3) |
+| Notiflex 이미지 | api:sha-aed9c36 (v0.1.2) | CI-CD e2e 테스트로 배포, 이후 태그는 git SHA 기반 (3.5) |
 | ArgoCD | v3.4.5 | 초기 설치 (3.2) |
 | Kafka | | |
 | OTel SDK | | |
