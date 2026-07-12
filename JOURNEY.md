@@ -61,6 +61,14 @@
 
 ## 현재 리소스
 
+⚠️ **2026-07-12 비용 절감을 위해 GCP 리소스 전체 정리됨** (ch4 완료 시점 → 재정리). 저장소 코드(`app/`, `k8s/`, `helm-values/`, `argocd/`)는 유지.
+  - 삭제: GKE 클러스터 `notiflex-cluster`(Compute 인스턴스 2개 + 30GB 디스크 2개 함께 정리) + Artifact Registry `notiflex`(이미지 전부 포함) + Service Account `github-ci@my-gitaiops.iam.gserviceaccount.com` + Cloud Build 소스/로그 버킷 `my-gitaiops_cloudbuild`
+  - 로컬 kubeconfig 컨텍스트 `gke-sysnet4admin_book_gitaiops` 삭제 (`home-server` 컨텍스트는 유지)
+✅ **2026-07-12 전체 스윕 검증 완료** — `my-gitaiops` 프로젝트에서 실습 생성 리소스가 하나도 남아있지 않음을 확인. 점검 항목: GKE 클러스터·Artifact Registry·Compute 인스턴스/디스크·Service Account(github-ci)·GCS 버킷·Forwarding Rule·Target Proxy·URL Map·Address·Backend Service·Health Check → 전부 없음. (`Compute Engine default SA`는 시스템 계정으로 유지). Secret Manager API는 비활성 상태로 별도 리소스 없음.
+> 재개 시 2.5(클러스터) → 2.6(Artifact Registry + 빌드/배포)부터 재실행 필요. ch4까지의 매니페스트·Helm values는 저장소에 남아있으므로 클러스터 재생성 후 ArgoCD Sync + Helm 재설치로 복원 가능.
+
+<details><summary>이전 이력 (2026-07-11 환경 이전 → 재생성, 2026-07-05 재개 → 재정리)</summary>
+
 ✅ **2026-07-11 다른 컴퓨터로 환경 이전 완료**: 기존 GCP 리소스(GKE `notiflex-cluster`, Artifact Registry `notiflex`)는 그대로 재사용. 새 컴퓨터에서 로컬 환경만 재구성 — gcloud 기본 zone/region 설정(asia-northeast3-a/asia-northeast3), Docker Artifact Registry 인증(`gcloud auth configure-docker`), `gke-gcloud-auth-plugin` 설치, kubectl 컨텍스트 `gke-sysnet4admin_book_gitaiops` 등록(기존 로컬 `home-server` 컨텍스트는 유지). notiflex-platform 저장소는 이미 클론되어 있었고 origin과 동기화 상태 확인. `notiflex` 네임스페이스 Pod 2/2 Running, `/health`·`/id` 재확인. 3장부터 이어서 진행 가능.
 
 ✅ **2026-07-11 재개 완료 — GCP 리소스 재생성**: 2.5(클러스터) → 2.6(Artifact Registry + 빌드/배포) 재실행. GKE `notiflex-cluster`(asia-northeast3-a, e2-medium Spot × 2, Gateway API standard) RUNNING, 컨텍스트 `gke-sysnet4admin_book_gitaiops`로 등록. Artifact Registry `notiflex` 재생성, 이미지 `api:v0.1.0` 빌드·푸시(Cloud Build). `notiflex` 네임스페이스 Pod 2/2 Running, `/health`·`/id` 정상 확인. 이제 3장부터 이어서 진행 가능.
@@ -81,6 +89,8 @@
 | default-pool | e2-medium (Spot) | 2 | notiflex-api, ArgoCD, monitoring(Prometheus/Grafana/Alertmanager/Loki/Fluent Bit) |
 
 ✅ **2026-07-12 monitoring 네임스페이스 구성**: kube-prometheus-stack(Prometheus+Grafana+Alertmanager+operator+kube-state-metrics) + Loki(SingleBinary) + Fluent Bit(DaemonSet ×2) 설치 완료. `shared/resource-budget.md`의 ch4 완료 시점 예산(~320m)과 대체로 일치.
+
+</details>
 
 ## 트러블슈팅 이력
 
