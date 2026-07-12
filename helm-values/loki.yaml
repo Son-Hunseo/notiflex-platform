@@ -1,0 +1,68 @@
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  useTestSchema: true
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+    bucketNames:
+      chunks: chunks
+      ruler: ruler
+      admin: admin
+  limits_config:
+    retention_period: 24h
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 128Mi
+  persistence:
+    enabled: false
+  # persistence.enabled=false면 /var/loki에 볼륨이 마운트되지 않아
+  # "mkdir /var/loki: read-only file system"로 크래시된다. emptyDir로 대체
+  # (Spot VM 환경이라 어차피 PVC보다 emptyDir이 적합 — 재시작 시 로그 유실은 허용)
+  extraVolumes:
+    - name: data
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: data
+      mountPath: /var/loki
+
+# SimpleScalable(read/write/backend) 타겟 비활성화 — SingleBinary와 병행 배포 방지
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# 최소 리소스 구성: 부가 컴포넌트 비활성화
+gateway:
+  enabled: false
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+minio:
+  enabled: false
+test:
+  enabled: false
+lokiCanary:
+  enabled: false
+monitoring:
+  serviceMonitor:
+    enabled: false
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  lokiCanary:
+    enabled: false
+
+grafana:
+  datasource:
+    isDefault: false

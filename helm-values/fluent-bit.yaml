@@ -1,0 +1,19 @@
+# 이 차트(grafana/fluent-bit)는 loki.serviceName이 비어 있으면
+# "${RELEASE}-loki"로 기본 host를 추정한다. Loki 릴리스명이 "loki"이므로
+# 명시하지 않으면 "fluent-bit-loki"를 찾다가 DNS 실패로 전송이 계속 실패한다.
+loki:
+  serviceName: "loki"
+  servicePort: 3100
+  servicePath: /loki/api/v1/push
+
+# autoKubernetesLabels: true로 하면 Pod에 붙은 모든 k8s 라벨이 그대로
+# Loki 스트림 라벨이 되어, 라벨이 많은 Pod(예: Helm 차트 Pod)에서
+# "has 16 label names; limit 15" 400 에러가 난다. 기본 labelMap
+# (namespace/pod/container 등)만으로 조회에는 충분하므로 off 유지.
+config:
+  autoKubernetesLabels: false
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
