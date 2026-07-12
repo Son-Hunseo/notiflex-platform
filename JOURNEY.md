@@ -12,8 +12,8 @@
 | ch2 | 2.5 GKE 클러스터 | ✅ | 2026-07-05 | notiflex-cluster (Zonal, Spot) |
 | ch2 | 2.6 빌드/배포 | ✅ | 2026-07-05 | api:v0.1.0, notiflex 네임스페이스 |
 | ch2 | 2.7 첫 커밋 | ✅ | 2026-07-05 | |
-| ch3 | 3.2 GitOps 도구 | ✅ | 2026-07-12 | ArgoCD v3.4.5, notiflex-smb Application Synced/Healthy |
-| ch3 | 3.3 기능 추가 | ✅ | 2026-07-12 | `/version` 엔드포인트 추가, api:v0.1.1 롤링 업데이트 배포 |
+| ch3 | 3.2 GitOps 도구 | ⬜ | | |
+| ch3 | 3.3 기능 추가 | ⬜ | | |
 | ch3 | 3.4 CI | ⬜ | | |
 | ch3 | 3.5 CI-CD 연결 | ⬜ | | |
 | ch4 | 4.2 메트릭 모니터링 | ⬜ | | |
@@ -42,15 +42,15 @@
 
 | 영역 | 선택 | 검토한 대안 | 선택 이유 |
 |------|------|-----------|----------|
-| GitOps 도구 (3.2) | ArgoCD | Flux, Jenkins X, Spinnaker | Web UI로 배포 상태를 시각적으로 확인 가능, e2-medium 노드에서 감당 가능한 리소스(~500m) |
+| | | | |
 
 ## 현재 버전
 
 | 컴포넌트 | 버전 | 변경 이력 |
 |---------|------|----------|
 | Go | 1.25 | 초기 설정 (2.6) |
-| Notiflex 이미지 | api:v0.1.1 | `/version` 엔드포인트 추가, 롤링 업데이트 (3.3) |
-| ArgoCD | v3.4.5 | 초기 설치 (3.2) |
+| Notiflex 이미지 | api:v0.1.0 | 초기 배포 (2.6) |
+| ArgoCD | | |
 | Kafka | | |
 | OTel SDK | | |
 
@@ -81,4 +81,4 @@
 
 | 챕터 | 문제 | 해결 |
 |------|------|------|
-| 3.2 | notiflex-smb Application이 `Repository not found` 에러로 Sync Unknown 상태 지속 | 저장소가 private으로 되어 있어 ArgoCD가 익명 접근 실패. GitHub 저장소를 Public으로 전환 후 `kubectl annotate application notiflex-smb -n argocd argocd.argoproj.io/refresh=hard`로 강제 refresh하여 Synced/Healthy 전환 |
+| | | |

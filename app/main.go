@@ -9,9 +9,6 @@ import (
 	"sync/atomic"
 )
 
-// version은 배포 버전을 나타낸다. 빌드 시 이미지 태그와 함께 갱신한다.
-const version = "v0.1.1"
-
 // idCounter는 /id 요청마다 순차 증가하는 인메모리 카운터다.
 var idCounter atomic.Uint64
 
@@ -25,13 +22,6 @@ var podName = func() string {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"status": "ok"})
-}
-
-func versionHandler(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]string{
-		"version":      version,
-		"generated_by": podName,
-	})
 }
 
 func idHandler(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +41,6 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/id", idHandler)
-	mux.HandleFunc("/version", versionHandler)
 
 	addr := ":8080"
 	log.Printf("notiflex-api listening on %s (pod=%s)", addr, podName)
