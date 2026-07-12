@@ -43,7 +43,8 @@
 | 영역 | 선택 | 검토한 대안 | 선택 이유 |
 |------|------|-----------|----------|
 | GitOps 도구 (3.2) | ArgoCD | Flux, Jenkins X, Spinnaker | Web UI로 배포 상태를 시각적으로 확인 가능, e2-medium 노드에서 감당 가능한 리소스(~500m) |
-| 로그 수집 (4.3) | Loki + Fluent Bit | ELK Stack, Google Cloud Logging | Loki(128Mi)+Fluent Bit(64Mi)는 경량, ELK는 Elasticsearch만 최소 2Gi라 e2-medium에서 불가. Grafana(4.2에서 이미 설치)에 데이터소스만 추가하면 메트릭과 로그를 같은 UI에서 조회 가능 |
+| 메트릭 모니터링 (4.2) | kube-prometheus-stack | Google Cloud Managed Service for Prometheus, Prometheus+Grafana 개별 차트 설치 | Prometheus Operator가 제공하는 ServiceMonitor/PrometheusRule CRD를 매니페스트로 관리해 GitOps(ArgoCD) 흐름에 그대로 편입 가능, Grafana·Alertmanager·kube-state-metrics·node-exporter가 한 번에 설치되어 4.3(로그)·4.4(알림)에서 재사용 가능, `helm-values/kube-prometheus.yaml`로 requests를 낮춰 e2-medium 2노드에서도 감당 가능 |
+| 알림 (4.4) | PrometheusRule + Alertmanager(kube-prometheus-stack 기본값) | Grafana Alerting, Cloud Monitoring 알림 정책 | 4.2에서 Alertmanager가 이미 함께 설치되어 추가 리소스 없이 바로 사용 가능, PrometheusRule이 CRD 매니페스트라 `k8s/monitoring/`에 버전관리 및 ArgoCD 배포 가능, Grafana Alerting·Cloud Monitoring은 UI/콘솔 설정 위주라 GitOps 원칙에서 벗어남 |
 
 ## 현재 버전
 

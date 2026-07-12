@@ -23,12 +23,14 @@
 ```
 notiflex-platform/
 ├── CLAUDE.md
-├── app/           # Go 애플리케이션
+├── app/               # Go 애플리케이션
 ├── k8s/
-│   └── smb/       # K8s 매니페스트
-├── argocd/        # ArgoCD Application 매니페스트
+│   ├── smb/           # K8s 매니페스트
+│   └── monitoring/    # Loki 데이터소스, PrometheusRule 등 모니터링 매니페스트
+├── helm-values/       # kube-prometheus-stack, Loki, Fluent Bit 등 Helm values
+├── argocd/            # ArgoCD Application 매니페스트
 └── .github/
-    └── workflows/ # CI 파이프라인
+    └── workflows/     # CI 파이프라인
 ```
 
 ## 행동 규칙
