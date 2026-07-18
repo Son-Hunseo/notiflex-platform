@@ -19,7 +19,7 @@
 | ch4 | 4.2 메트릭 모니터링 | ✅ | 2026-07-12 | kube-prometheus-stack(Prometheus+Grafana+Alertmanager) 설치, `helm-values/kube-prometheus.yaml`로 리소스 축소. port-forward로 Grafana 접속(admin/시크릿 PW) 확인, Prometheus 타겟 16/18 up 확인(coredns 2개 down은 GKE 관리형 환경의 정상 현상) |
 | ch4 | 4.3 로그 수집 | ✅ | 2026-07-12 | Loki(SingleBinary) + Fluent Bit 설치, `helm-values/loki.yaml`·`helm-values/fluent-bit.yaml` 작성. `k8s/monitoring/loki-datasource.yaml`로 Grafana Loki 데이터소스 추가 배포. Grafana Explore에서 `{namespace="monitoring"}` 등으로 실제 로그 조회 확인 |
 | ch4 | 4.4 알림 | ✅ | 2026-07-12 | `k8s/monitoring/pod-restart-alert.yaml`(PrometheusRule) 배포, Alertmanager는 kube-prometheus-stack 기본값 사용. Prometheus가 규칙 로드함(`notiflex-alerts`/`PodRestartTooMany`) 확인 |
-| ch5 | 5.2 트래픽 관리 | ⬜ | | |
+| ch5 | 5.2 트래픽 관리 | ✅ | 2026-07-19 | Gateway API(`gke-l7-regional-external-managed`), Gateway+HTTPRoute+HealthCheckPolicy 배포. proxy-only 서브넷 없어 생성 필요했음. 외부 IP로 /health,/id,/version 확인 |
 | ch5 | 5.3 무중단 배포 | ⬜ | | |
 | ch6 | 6.1 캐시 | ⬜ | | |
 | ch6 | 6.2 시크릿 관리 | ⬜ | | |
@@ -70,6 +70,8 @@
   - `k8s/monitoring/pod-restart-alert.yaml`(PrometheusRule) 재적용 → Prometheus 규칙 로드(`notiflex-alerts`/`PodRestartTooMany`) 확인. 규칙 반영까지 kubelet ConfigMap 동기화 주기(~1분) 만큼 지연되는 것을 관찰(신규 트러블슈팅 이력 아님, 정상 동작)
   - 모든 네임스페이스(`argocd`/`monitoring`/`notiflex`/`kube-system` 등) Pod 전수 Running 확인
 > 재개 시 다음 진행 지점: ch5.2(트래픽 관리)부터 시작 가능. ch5 이후 리소스는 아직 미생성 상태.
+
+✅ **2026-07-19 ch5.2 Gateway API 구성**: `k8s/smb/gateway.yaml`(Gateway+HTTPRoute), `k8s/smb/healthcheckpolicy.yaml` 추가 후 ArgoCD auto-sync로 배포. Gateway 최초 생성 시 `An active proxy-only subnetwork is required` 에러 발생 → `proxy-only-subnet`(172.16.0.0/23, REGIONAL_MANAGED_PROXY, asia-northeast3) 신규 생성으로 해결. Gateway 외부 IP `35.216.114.48` 할당(PROGRAMMED=True), `/health`·`/id`·`/version`(v0.1.2) 외부 접속 확인.
 
 ⚠️ **2026-07-12 비용 절감을 위해 GCP 리소스 전체 정리됨** (ch4 완료 시점 → 재정리). 저장소 코드(`app/`, `k8s/`, `helm-values/`, `argocd/`)는 유지.
   - 삭제: GKE 클러스터 `notiflex-cluster`(Compute 인스턴스 2개 + 30GB 디스크 2개 함께 정리) + Artifact Registry `notiflex`(이미지 전부 포함) + Service Account `github-ci@my-gitaiops.iam.gserviceaccount.com` + Cloud Build 소스/로그 버킷 `my-gitaiops_cloudbuild`
