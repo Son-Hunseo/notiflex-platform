@@ -61,11 +61,20 @@
 
 ## 현재 리소스
 
+✅ **2026-07-19 재개 완료 — GCP 리소스 전체 재생성 (ch4까지)**: 2026-07-12 정리 이후 비어있던 `my-gitaiops` 프로젝트에 ch2.5~ch4.4 리소스를 처음부터 재생성.
+  - GKE `notiflex-cluster`(asia-northeast3-a, e2-medium Spot ×2, disk 30GB, Gateway API standard) RUNNING, 컨텍스트 `gke-sysnet4admin_book_gitaiops`로 등록
+  - Artifact Registry `notiflex` 재생성 후 기존 `app/` 소스(HEAD, ch3.5 시점과 코드 동일)를 그대로 빌드하여 매니페스트가 참조하던 태그 `api:sha-aed9c36` 그대로 재푸시 — `k8s/smb/deployment.yaml` 수정 없이 이미지 정합성 유지
+  - ArgoCD stable manifest 설치 → 기본 포함된 NetworkPolicy가 repo-server의 GitHub egress를 막는 기존 트러블슈팅 이슈를 선제적으로 삭제 후 전체 rollout restart → `argocd/notiflex-smb.yaml` 적용 → `notiflex-smb` Application **Synced/Healthy**, `notiflex` 네임스페이스 Pod 2/2 Running, `/health`·`/id`·`/version`(v0.1.2) 확인
+  - kube-prometheus-stack(`helm-values/kube-prometheus.yaml`) 설치 → Prometheus 타겟 16/18 up(코어DNS 2개 down은 기존과 동일한 GKE 관리형 환경의 정상 현상)
+  - Loki(SingleBinary) + Fluent Bit(`helm-values/loki.yaml`·`helm-values/fluent-bit.yaml`) 설치, `k8s/monitoring/loki-datasource.yaml` 적용 → Loki API로 `{namespace="monitoring"}` 로그 실제 수신 확인
+  - `k8s/monitoring/pod-restart-alert.yaml`(PrometheusRule) 재적용 → Prometheus 규칙 로드(`notiflex-alerts`/`PodRestartTooMany`) 확인. 규칙 반영까지 kubelet ConfigMap 동기화 주기(~1분) 만큼 지연되는 것을 관찰(신규 트러블슈팅 이력 아님, 정상 동작)
+  - 모든 네임스페이스(`argocd`/`monitoring`/`notiflex`/`kube-system` 등) Pod 전수 Running 확인
+> 재개 시 다음 진행 지점: ch5.2(트래픽 관리)부터 시작 가능. ch5 이후 리소스는 아직 미생성 상태.
+
 ⚠️ **2026-07-12 비용 절감을 위해 GCP 리소스 전체 정리됨** (ch4 완료 시점 → 재정리). 저장소 코드(`app/`, `k8s/`, `helm-values/`, `argocd/`)는 유지.
   - 삭제: GKE 클러스터 `notiflex-cluster`(Compute 인스턴스 2개 + 30GB 디스크 2개 함께 정리) + Artifact Registry `notiflex`(이미지 전부 포함) + Service Account `github-ci@my-gitaiops.iam.gserviceaccount.com` + Cloud Build 소스/로그 버킷 `my-gitaiops_cloudbuild`
   - 로컬 kubeconfig 컨텍스트 `gke-sysnet4admin_book_gitaiops` 삭제 (`home-server` 컨텍스트는 유지)
 ✅ **2026-07-12 전체 스윕 검증 완료** — `my-gitaiops` 프로젝트에서 실습 생성 리소스가 하나도 남아있지 않음을 확인. 점검 항목: GKE 클러스터·Artifact Registry·Compute 인스턴스/디스크·Service Account(github-ci)·GCS 버킷·Forwarding Rule·Target Proxy·URL Map·Address·Backend Service·Health Check → 전부 없음. (`Compute Engine default SA`는 시스템 계정으로 유지). Secret Manager API는 비활성 상태로 별도 리소스 없음.
-> 재개 시 2.5(클러스터) → 2.6(Artifact Registry + 빌드/배포)부터 재실행 필요. ch4까지의 매니페스트·Helm values는 저장소에 남아있으므로 클러스터 재생성 후 ArgoCD Sync + Helm 재설치로 복원 가능.
 
 <details><summary>이전 이력 (2026-07-11 환경 이전 → 재생성, 2026-07-05 재개 → 재정리)</summary>
 
