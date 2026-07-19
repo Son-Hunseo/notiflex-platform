@@ -53,3 +53,27 @@
 - 같은 Argo 생태계라 ArgoCD와 통합이 매끄럽고, Rollout 상태를 UI·`kubectl argo rollouts`로 확인 가능
 - 2 replica 규모에서 Blue/Green의 리소스 2배 부담이 크지 않음
 - Canary는 메트릭 기반 자동 판정이 선행되어야 안전한데 현재는 미확보 — Rollout CRD 구조상 6장에서 Canary로의 전환 경로는 열려 있음
+
+## ADR-008: 캐시/상태 공유는 Valkey (6장)
+**시점**: 2026-07 / **결정**: Pod 간 공유 상태(순차 ID 카운터)는 Valkey로 관리한다. Redis, Memcached, DragonflyDB는 쓰지 않는다.
+**이유**:
+- INCR로 원자적 순차 ID 생성이 필요하고 Pod 재시작 후에도 카운터가 유지(영속성)되어야 함 → Memcached는 INCR 미지원·영속성 없어 탈락
+- Redis는 2024년 SSPL 라이선스 전환으로 상용 이용에 제한이 생김
+- Valkey는 Redis 포크로 100% 호환되면서 BSD 라이선스를 유지
+- Bitnami 차트로 간편 설치, e2-medium 2노드 환경에서도 50m 경량 운영 가능
+
+## ADR-009: Secret 관리는 Secrets Store CSI Driver + GCP Secret Manager (6장)
+**시점**: 2026-07 / **결정**: Valkey 비밀번호 등 민감정보는 Secrets Store CSI Driver + GCP Secret Manager로 관리한다. Sealed Secrets, External Secrets Operator, `kubectl create secret`은 쓰지 않는다.
+**이유**:
+- GKE 환경이라 Workload Identity로 별도 SA 키 파일 없이 네이티브 인증 가능
+- CSI 파일 마운트 방식은 K8s Secret 리소스를 생성하지 않아(secretObjects 미사용) etcd/RBAC 노출 표면이 External Secrets Operator보다 작음
+- Sealed Secrets는 클러스터별 개인키 관리 부담이 있고, `kubectl create secret`은 Git에 선언적으로 남지 않아 GitOps 원칙에서 벗어남
+- 다만 이 이점을 실제로 살리려면 앱이 env var가 아니라 마운트된 파일을 직접 읽어야 해서 `app/main.go`를 파일 읽기 방식으로 변경
+
+## ADR-010: 배포 전략을 Canary로 전환 (6장)
+**시점**: 2026-07 / **결정**: Argo Rollouts 전략을 Blue/Green에서 Canary로 전환한다. Blue/Green 유지 방안은 쓰지 않는다.
+**이유**:
+- 20%→50%→80%→100% 단계적 트래픽 전환으로 검증 실패 시 노출 범위를 최소화(Blue/Green은 전량 전환)
+- Blue/Green(리소스 2배) 대비 Canary는 리소스 효율적(약 1.2배)이라 CPU가 타이트한 환경에 유리
+- 같은 Rollout CRD에서 strategy 필드만 변경하면 되어 새 도구 설치 없이 점진적으로 전환 가능
+- ADR-007에서 열어둔 "6장에서 Canary로 전환" 경로를 실행에 옮긴 것으로, steps에 pause만 두고 우선 수동 검증 방식으로 도입
