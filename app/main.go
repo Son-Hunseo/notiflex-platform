@@ -6,14 +6,16 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"sync/atomic"
+	"time"
+
+	"github.com/valkey-io/valkey-go"
 )
 
 // version은 배포 버전을 나타낸다. 빌드 시 이미지 태그와 함께 갱신한다.
-const version = "v0.2.0"
+const version = "v0.3.0"
 
-// idCounter는 /id 요청마다 순차 증가하는 인메모리 카운터다.
-var idCounter atomic.Uint64
+// valkeyClient는 Pod 간 공유되는 ID 카운터를 보관하는 Valkey 클라이언트다.
+var valkeyClient valkey.Client
 
 // podName은 요청을 처리한 Pod의 이름이다. K8s가 HOSTNAME 환경 변수로 주입한다.
 var podName = func() string {
@@ -22,6 +24,27 @@ var podName = func() string {
 	}
 	return "unknown"
 }()
+
+func connectValkey() valkey.Client {
+	addr := os.Getenv("VALKEY_ADDR")
+	password := os.Getenv("VALKEY_PASSWORD")
+
+	var client valkey.Client
+	var err error
+	for i := 0; i < 10; i++ {
+		client, err = valkey.NewClient(valkey.ClientOption{
+			InitAddress: []string{addr},
+			Password:    password,
+		})
+		if err == nil {
+			return client
+		}
+		log.Printf("Valkey 연결 재시도 %d/10: %v", i+1, err)
+		time.Sleep(3 * time.Second)
+	}
+	log.Fatalf("Valkey 연결 실패: %v", err)
+	return nil
+}
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"status": "ok"})
@@ -35,9 +58,14 @@ func versionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func idHandler(w http.ResponseWriter, r *http.Request) {
-	id := idCounter.Add(1)
+	resp := valkeyClient.Do(r.Context(), valkeyClient.B().Incr().Key("notiflex:id").Build())
+	id, err := resp.ToInt64()
+	if err != nil {
+		http.Error(w, "id 생성 실패", http.StatusInternalServerError)
+		return
+	}
 	writeJSON(w, map[string]string{
-		"id":           strconv.FormatUint(id, 10),
+		"id":           strconv.FormatInt(id, 10),
 		"generated_by": podName,
 	})
 }
@@ -48,6 +76,9 @@ func writeJSON(w http.ResponseWriter, v any) {
 }
 
 func main() {
+	valkeyClient = connectValkey()
+	defer valkeyClient.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/id", idHandler)

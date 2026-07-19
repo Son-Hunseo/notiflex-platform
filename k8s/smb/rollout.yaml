@@ -32,6 +32,14 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+          env:
+            - name: VALKEY_ADDR
+              value: valkey-primary.notiflex.svc.cluster.local:6379
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: valkey
+                  key: valkey-password
           resources:
             requests:
               cpu: 50m
