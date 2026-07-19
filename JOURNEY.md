@@ -20,7 +20,7 @@
 | ch4 | 4.3 로그 수집 | ✅ | 2026-07-12 | Loki(SingleBinary) + Fluent Bit 설치, `helm-values/loki.yaml`·`helm-values/fluent-bit.yaml` 작성. `k8s/monitoring/loki-datasource.yaml`로 Grafana Loki 데이터소스 추가 배포. Grafana Explore에서 `{namespace="monitoring"}` 등으로 실제 로그 조회 확인 |
 | ch4 | 4.4 알림 | ✅ | 2026-07-12 | `k8s/monitoring/pod-restart-alert.yaml`(PrometheusRule) 배포, Alertmanager는 kube-prometheus-stack 기본값 사용. Prometheus가 규칙 로드함(`notiflex-alerts`/`PodRestartTooMany`) 확인 |
 | ch5 | 5.2 트래픽 관리 | ✅ | 2026-07-19 | Gateway API(`gke-l7-regional-external-managed`), Gateway+HTTPRoute+HealthCheckPolicy 배포. proxy-only 서브넷 없어 생성 필요했음. 외부 IP로 /health,/id,/version 확인 |
-| ch5 | 5.3 무중단 배포 | ⬜ | | |
+| ch5 | 5.3 무중단 배포 | ✅ | 2026-07-19 | Argo Rollouts v1.9.1 설치, Deployment→Rollout(Blue/Green) 전환, CI sed 대상을 rollout.yaml로 갱신, api:v0.2.0 배포로 auto-promote(30s) 동작 확인 |
 | ch6 | 6.1 캐시 | ⬜ | | |
 | ch6 | 6.2 시크릿 관리 | ⬜ | | |
 | ch6 | 6.3 Canary 전환 | ⬜ | | |
@@ -43,19 +43,24 @@
 | 영역 | 선택 | 검토한 대안 | 선택 이유 |
 |------|------|-----------|----------|
 | GitOps 도구 (3.2) | ArgoCD | Flux, Jenkins X, Spinnaker | Web UI로 배포 상태를 시각적으로 확인 가능, e2-medium 노드에서 감당 가능한 리소스(~500m) |
+| CI 도구 (3.4) | GitHub Actions | Cloud Build, GitLab CI, Jenkins | GitHub 네이티브라 별도 서버 설치/관리 불필요, `.github/workflows/ci.yaml` YAML 선언 하나로 파이프라인 정의, 프라이빗 저장소도 월 2,000분 무료, `google-github-actions/auth`로 GCP 서비스 계정 연동 간편 |
 | 메트릭 모니터링 (4.2) | kube-prometheus-stack | Google Cloud Managed Service for Prometheus, Prometheus+Grafana 개별 차트 설치 | Prometheus Operator가 제공하는 ServiceMonitor/PrometheusRule CRD를 매니페스트로 관리해 GitOps(ArgoCD) 흐름에 그대로 편입 가능, Grafana·Alertmanager·kube-state-metrics·node-exporter가 한 번에 설치되어 4.3(로그)·4.4(알림)에서 재사용 가능, `helm-values/kube-prometheus.yaml`로 requests를 낮춰 e2-medium 2노드에서도 감당 가능 |
+| 로그 수집 (4.3) | Loki + Fluent Bit | ELK Stack, CloudWatch Logs, Google Cloud Logging | 경량(Loki 128Mi, Fluent Bit 64Mi)이라 e2-medium에서 ELK(2Gi+)는 불가능, 4.2에서 설치한 Grafana에 데이터소스만 추가하면 메트릭과 같은 UI에서 로그 조회 가능, 라벨 기반 인덱싱이라 풀텍스트 인덱싱 대비 저장 비용 낮음 |
 | 알림 (4.4) | PrometheusRule + Alertmanager(kube-prometheus-stack 기본값) | Grafana Alerting, Cloud Monitoring 알림 정책 | 4.2에서 Alertmanager가 이미 함께 설치되어 추가 리소스 없이 바로 사용 가능, PrometheusRule이 CRD 매니페스트라 `k8s/monitoring/`에 버전관리 및 ArgoCD 배포 가능, Grafana Alerting·Cloud Monitoring은 UI/콘솔 설정 위주라 GitOps 원칙에서 벗어남 |
+| 외부 트래픽 관리 (5.2) | Gateway API | Ingress NGINX, Istio, Traefik | GKE Standard에서 별도 Controller 설치 없이 네이티브로 지원(`gke-l7-regional-external-managed`), Gateway(인프라)/HTTPRoute(앱) 역할 분리, Ingress를 대체하는 K8s 공식 표준, 5.3 Blue/Green의 HTTPRoute backendRefs 트래픽 분배와 연동 |
+| 무중단 배포 (5.3) | Argo Rollouts — Blue/Green | Flagger, K8s native Rolling Update | 같은 Argo 생태계라 ArgoCD와 통합이 매끄럽고 Rollout 상태를 UI에서 확인 가능, CRD 기반 YAML 선언이라 GitOps 호환, 6장에서 Canary로 전략을 바꿀 때 Rollout CRD만 수정하면 되는 점진적 진화 경로, 2 replica 규모라 Blue/Green의 리소스 2배 부담이 크지 않음 |
 
 ## 현재 버전
 
 | 컴포넌트 | 버전 | 변경 이력 |
 |---------|------|----------|
 | Go | 1.25 | 초기 설정 (2.6) |
-| Notiflex 이미지 | api:sha-aed9c36 (v0.1.2) | CI-CD e2e 테스트로 배포, 이후 태그는 git SHA 기반 (3.5) |
+| Notiflex 이미지 | api:v0.2.0 | CI-CD e2e 테스트로 배포, 이후 태그는 git SHA 기반 (3.5). Blue/Green 전환 후 v0.2.0으로 배포 테스트, `/version` 응답 갱신 (5.3) |
 | ArgoCD | v3.4.5 | 초기 설치 (3.2) |
 | kube-prometheus-stack | chart 87.15.1 | 초기 설치, requests 축소 (4.2) |
 | Loki | 3.6.7 (chart 7.0.0, SingleBinary) | 초기 설치 (4.3) |
 | Fluent Bit | grafana/fluent-bit-plugin-loki 2.1.0-amd64 | 초기 설치 (4.3) |
+| Argo Rollouts | v1.9.1 | 초기 설치, Deployment→Rollout Blue/Green 전환 (5.3) |
 | Kafka | | |
 | OTel SDK | | |
 
@@ -70,6 +75,8 @@
   - `k8s/monitoring/pod-restart-alert.yaml`(PrometheusRule) 재적용 → Prometheus 규칙 로드(`notiflex-alerts`/`PodRestartTooMany`) 확인. 규칙 반영까지 kubelet ConfigMap 동기화 주기(~1분) 만큼 지연되는 것을 관찰(신규 트러블슈팅 이력 아님, 정상 동작)
   - 모든 네임스페이스(`argocd`/`monitoring`/`notiflex`/`kube-system` 등) Pod 전수 Running 확인
 > 재개 시 다음 진행 지점: ch5.2(트래픽 관리)부터 시작 가능. ch5 이후 리소스는 아직 미생성 상태.
+
+✅ **2026-07-19 ch5.3 Argo Rollouts Blue/Green 전환**: `argo-rollouts` 네임스페이스에 컨트롤러(v1.9.1) 설치. 기존 `k8s/smb/deployment.yaml`을 삭제하고 `k8s/smb/rollout.yaml`(Rollout, `strategy.blueGreen`: activeService `notiflex-api` / previewService `notiflex-api-preview`, autoPromotionSeconds 30) + `k8s/smb/service-preview.yaml` 추가. `.github/workflows/ci.yaml`의 이미지 태그 sed 대상을 `deployment.yaml` → `rollout.yaml`로 갱신(두 곳: sed 라인, `git add` 라인). `api:v0.2.0`으로 배포해 `kubectl argo rollouts get rollout`으로 30초 후 auto-promote되어 active 전환되는 것을 확인, `/version` 응답이 v0.2.0으로 갱신됨을 검증.
 
 ✅ **2026-07-19 ch5.2 Gateway API 구성**: `k8s/smb/gateway.yaml`(Gateway+HTTPRoute), `k8s/smb/healthcheckpolicy.yaml` 추가 후 ArgoCD auto-sync로 배포. Gateway 최초 생성 시 `An active proxy-only subnetwork is required` 에러 발생 → `proxy-only-subnet`(172.16.0.0/23, REGIONAL_MANAGED_PROXY, asia-northeast3) 신규 생성으로 해결. Gateway 외부 IP `35.216.114.48` 할당(PROGRAMMED=True), `/health`·`/id`·`/version`(v0.1.2) 외부 접속 확인.
 
