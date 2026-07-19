@@ -22,7 +22,7 @@
 | ch5 | 5.2 트래픽 관리 | ✅ | 2026-07-19 | Gateway API(`gke-l7-regional-external-managed`), Gateway+HTTPRoute+HealthCheckPolicy 배포. proxy-only 서브넷 없어 생성 필요했음. 외부 IP로 /health,/id,/version 확인 |
 | ch5 | 5.3 무중단 배포 | ✅ | 2026-07-19 | Argo Rollouts v1.9.1 설치, Deployment→Rollout(Blue/Green) 전환, CI sed 대상을 rollout.yaml로 갱신, api:v0.2.0 배포로 auto-promote(30s) 동작 확인 |
 | ch6 | 6.1 캐시 | ✅ | 2026-07-20 | Valkey(standalone) 설치, 인메모리 카운터→Valkey INCR로 교체. ch6 CPU 예산 확보를 위해 replicas 2→1 선제 축소(B/G) |
-| ch6 | 6.2 시크릿 관리 | ⬜ | | |
+| ch6 | 6.2 시크릿 관리 | ✅ | 2026-07-20 | Workload Identity + GKE Secret Manager CSI로 Valkey 비밀번호를 파일 마운트 방식으로 전환. CPU 부족으로 Alertmanager/Grafana/operator/kube-state-metrics 임시 축소(replicas 0) — ch7.2 노드풀 추가 후 복원 필요 |
 | ch6 | 6.3 Canary 전환 | ⬜ | | |
 | ch7 | 7.2 멀티 노드풀 | ⬜ | | |
 | ch7 | 7.3 App of Apps | ⬜ | | |
@@ -50,23 +50,30 @@
 | 외부 트래픽 관리 (5.2) | Gateway API | Ingress NGINX, Istio, Traefik | GKE Standard에서 별도 Controller 설치 없이 네이티브로 지원(`gke-l7-regional-external-managed`), Gateway(인프라)/HTTPRoute(앱) 역할 분리, Ingress를 대체하는 K8s 공식 표준, 5.3 Blue/Green의 HTTPRoute backendRefs 트래픽 분배와 연동 |
 | 무중단 배포 (5.3) | Argo Rollouts — Blue/Green | Flagger, K8s native Rolling Update | 같은 Argo 생태계라 ArgoCD와 통합이 매끄럽고 Rollout 상태를 UI에서 확인 가능, CRD 기반 YAML 선언이라 GitOps 호환, 6장에서 Canary로 전략을 바꿀 때 Rollout CRD만 수정하면 되는 점진적 진화 경로, 2 replica 규모라 Blue/Green의 리소스 2배 부담이 크지 않음 |
 | 캐시/상태 공유 (6.1) | Valkey | Redis, Memcached, DragonflyDB | INCR로 원자적 순차 ID 생성 필요 + Pod 재시작 후에도 카운터 유지(영속성) 필요 → Memcached는 INCR 미지원·영속성 없어 탈락. Redis는 2024년 SSPL 라이선스 전환으로 상용 제한 있음. Valkey는 Redis 포크로 100% 호환되면서 BSD 라이선스 유지, Bitnami 차트로 간편 설치, e2-medium 2노드 환경에서 50m 경량 운영 가능 |
+| Secret 관리 (6.2) | Secrets Store CSI Driver + GCP Secret Manager | Sealed Secrets, External Secrets Operator, kubectl create secret | GKE 환경이라 Workload Identity로 SA 키 없이 네이티브 인증 가능. CSI 파일 마운트 방식은 K8s Secret 리소스를 만들지 않아(secretObjects 미사용) etcd/RBAC 노출 표면이 ESO(K8s Secret 자동 생성)보다 작음 — 단, 이 이점을 실제로 살리려면 앱이 env var가 아니라 마운트된 파일을 직접 읽어야 해서 `app/main.go`를 파일 읽기 방식으로 변경 |
 
 ## 현재 버전
 
 | 컴포넌트 | 버전 | 변경 이력 |
 |---------|------|----------|
 | Go | 1.25 | 초기 설정 (2.6) |
-| Notiflex 이미지 | api:sha-ccd6ad1 (내부 버전 v0.3.0) | CI-CD e2e 테스트로 배포, 이후 태그는 git SHA 기반 (3.5). Blue/Green 전환 후 v0.2.0으로 배포 테스트, `/version` 응답 갱신 (5.3). Valkey INCR로 ID 생성 방식 전환, `/version` 응답 v0.3.0으로 갱신 (6.1) |
+| Notiflex 이미지 | api:sha-ad666cc (내부 버전 v0.3.0) | CI-CD e2e 테스트로 배포, 이후 태그는 git SHA 기반 (3.5). Blue/Green 전환 후 v0.2.0으로 배포 테스트, `/version` 응답 갱신 (5.3). Valkey INCR로 ID 생성 방식 전환, `/version` 응답 v0.3.0으로 갱신 (6.1). Valkey 비밀번호를 CSI 파일 마운트(`VALKEY_PASSWORD_FILE`)로 읽도록 변경 (6.2) |
 | Valkey | chart 6.2.0 (appVersion 9.1.0) | standalone 모드 최초 설치, `notiflex` 네임스페이스 (6.1) |
 | ArgoCD | v3.4.5 | 초기 설치 (3.2) |
-| kube-prometheus-stack | chart 87.15.1 | 초기 설치, requests 축소 (4.2) |
-| Loki | 3.6.7 (chart 7.0.0, SingleBinary) | 초기 설치 (4.3) |
-| Fluent Bit | grafana/fluent-bit-plugin-loki 2.1.0-amd64 | 초기 설치 (4.3) |
+| kube-prometheus-stack | chart 87.15.1 | 초기 설치, requests 축소 (4.2). CPU 부족으로 Alertmanager/Grafana/operator/kube-state-metrics 임시 replicas=0 (6.2, ch7.2 복원 예정) |
+| Loki | 3.6.7 (chart 7.0.0, SingleBinary) | 초기 설치 (4.3). CPU 부족으로 6.2에서 helm uninstall, ch7.2 복원 예정 |
+| Fluent Bit | grafana/fluent-bit-plugin-loki 2.1.0-amd64 | 초기 설치 (4.3). CPU 부족으로 6.2에서 helm uninstall, ch7.2 복원 예정 |
 | Argo Rollouts | v1.9.1 | 초기 설치, Deployment→Rollout Blue/Green 전환 (5.3) |
 | Kafka | | |
 | OTel SDK | | |
 
 ## 현재 리소스
+
+⚠️ **2026-07-20 ch6.2 Secret 관리 도입 — CPU 한계 도달, 모니터링 일부 컴포넌트 임시 비활성화**: GKE Workload Identity(클러스터+노드풀) + `--enable-secret-manager` CSI addon 활성화. `gcloud secrets create valkey-password`로 GCP Secret Manager에 저장(`printf`로 개행 없이), `notiflex-secrets` GSA 생성 후 `roles/secretmanager.secretAccessor` 부여, `notiflex` 네임스페이스의 `notiflex-api` KSA를 Workload Identity로 GSA와 바인딩. `k8s/smb/secretproviderclass.yaml`(provider: gke) + `k8s/smb/serviceaccount.yaml` 추가, `rollout.yaml`에 CSI 볼륨(`secrets-store-gke.csi.k8s.io`) 마운트 및 `VALKEY_PASSWORD_FILE` 환경변수 추가. `app/main.go`가 마운트된 파일에서 비밀번호를 읽도록 변경(`secretObjects` 미사용 — K8s Secret 리소스를 만들지 않아 노출 표면 최소화).
+  - **예상보다 CPU 여유가 부족했던 이유**: Workload Identity 활성화가 `gke-metadata-server` DaemonSet(노드당 100m, 합계 200m)을 추가로 배포한다는 점이 `shared/resource-budget.md`/가드레일에 명시되어 있지 않았음(신규 발견 사항). CSI DaemonSet(240m)과 합쳐 예상보다 더 많은 CPU가 소진됨.
+  - ch6.1에서 이미 Loki+FluentBit를 제거하고 monitoring requests를 축소했음에도 CSI 설치 후 두 노드 모두 CPU 96~99%에 도달, Blue/Green이 신규+기존 Pod을 동시에 띄우지 못해 배포가 멈춤.
+  - **임시 조치**: `kubectl scale`로 `kube-prometheus-kube-prome-operator`, `kube-prometheus-grafana`, `kube-prometheus-kube-state-metrics` Deployment와 `alertmanager` StatefulSet을 `replicas=0`으로 내려 Blue/Green 배포를 완료시킴. Prometheus 본체(5m)는 계속 Running 유지(메트릭 수집은 지속). 배포 완료 후 원복을 시도했으나 다시 Pending 발생 확인 → **ch7.2 노드풀 추가 전까지 replicas=0 유지**가 확정. Loki/FluentBit(ch6.1에서 제거)와 함께 ch7.2에서 반드시 복원해야 할 목록에 추가.
+  - 검증: `/id` 호출로 CSI 파일 마운트 비밀번호로 Valkey 인증 성공 확인(Pod 로그에 재시도 없이 즉시 연결 성공), ID 카운터가 이전 값(34→35)에서 정상 이어짐.
 
 ✅ **2026-07-20 ch6.1 Valkey 캐시 도입**: `shared/resource-budget.md`가 경고한 ch6 CPU 위험 구간(노드 CPU requests 99%/79%로 이미 타이트) 확인 후, Valkey 설치 전 `k8s/smb/rollout.yaml`의 `replicas: 2 → 1`로 선제 축소(Git 경유, ArgoCD `argocd.argoproj.io/refresh=hard`로 강제 동기화). `helm install valkey bitnami/valkey -n notiflex`(standalone, resourcesPreset=none, requests cpu 50m/mem 64Mi) 설치 → `valkey-primary-0` Running, Secret 이름 `valkey`/key `valkey-password` 확인(가드레일 문서와 일치). `app/main.go`의 인메모리 `atomic.Uint64` 카운터를 `github.com/valkey-io/valkey-go` 클라이언트의 `INCR notiflex:id`로 교체, 10회/3초 간격 연결 재시도 로직 추가, `Dockerfile`을 `COPY go.mod go.sum ./`로 갱신. `git push` → CI가 `api:sha-ccd6ad1` 빌드/푸시 및 `rollout.yaml` 이미지 태그 자동 갱신 → ArgoCD Blue/Green 배포(Synced/Healthy). 검증: `/id` 호출로 `id: 1→2→3` 순차 증가 확인, Pod을 강제 삭제(`kubectl delete pod`) 후 재기동된 새 Pod에서 `/id` 호출 시 `id: 4`로 이어져 카운터가 Valkey에 영속되는 것(인메모리였다면 1로 리셋)을 확인. B/G replicas는 1로 유지 중이며, ch7에서 노드풀 추가 후 2로 복원 예정.
 
