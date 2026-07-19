@@ -10,7 +10,7 @@ import (
 )
 
 // version은 배포 버전을 나타낸다. 빌드 시 이미지 태그와 함께 갱신한다.
-const version = "v0.1.2"
+const version = "v0.2.0"
 
 // idCounter는 /id 요청마다 순차 증가하는 인메모리 카운터다.
 var idCounter atomic.Uint64
