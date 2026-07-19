@@ -15,6 +15,7 @@ spec:
       labels:
         app: notiflex-api
     spec:
+      serviceAccountName: notiflex-api
       containers:
         - name: notiflex-api
           image: asia-northeast3-docker.pkg.dev/my-gitaiops/notiflex/api:sha-ccd6ad1
@@ -35,11 +36,12 @@ spec:
           env:
             - name: VALKEY_ADDR
               value: valkey-primary.notiflex.svc.cluster.local:6379
-            - name: VALKEY_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: valkey
-                  key: valkey-password
+            - name: VALKEY_PASSWORD_FILE
+              value: /mnt/secrets/valkey-password
+          volumeMounts:
+            - name: secrets
+              mountPath: /mnt/secrets
+              readOnly: true
           resources:
             requests:
               cpu: 50m
@@ -47,6 +49,13 @@ spec:
             limits:
               cpu: 100m
               memory: 64Mi
+      volumes:
+        - name: secrets
+          csi:
+            driver: secrets-store-gke.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: notiflex-secrets
   strategy:
     blueGreen:
       activeService: notiflex-api

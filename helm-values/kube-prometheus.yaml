@@ -2,14 +2,14 @@ prometheus:
   prometheusSpec:
     resources:
       requests:
-        cpu: 100m
+        cpu: 5m
         memory: 256Mi
     retention: 6h
 
 grafana:
   resources:
     requests:
-      cpu: 50m
+      cpu: 5m
       memory: 128Mi
   persistence:
     enabled: false
@@ -18,13 +18,13 @@ alertmanager:
   alertmanagerSpec:
     resources:
       requests:
-        cpu: 25m
+        cpu: 5m
         memory: 64Mi
 
 prometheusOperator:
   resources:
     requests:
-      cpu: 25m
+      cpu: 5m
       memory: 64Mi
 
 kube-state-metrics:

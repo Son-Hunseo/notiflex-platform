@@ -28,6 +28,13 @@ var podName = func() string {
 func connectValkey() valkey.Client {
 	addr := os.Getenv("VALKEY_ADDR")
 	password := os.Getenv("VALKEY_PASSWORD")
+	if pwFile := os.Getenv("VALKEY_PASSWORD_FILE"); pwFile != "" {
+		data, err := os.ReadFile(pwFile)
+		if err != nil {
+			log.Fatalf("Valkey 비밀번호 파일 읽기 실패: %v", err)
+		}
+		password = string(data)
+	}
 
 	var client valkey.Client
 	var err error
