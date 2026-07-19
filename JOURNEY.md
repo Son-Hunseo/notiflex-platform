@@ -21,7 +21,7 @@
 | ch4 | 4.4 알림 | ✅ | 2026-07-12 | `k8s/monitoring/pod-restart-alert.yaml`(PrometheusRule) 배포, Alertmanager는 kube-prometheus-stack 기본값 사용. Prometheus가 규칙 로드함(`notiflex-alerts`/`PodRestartTooMany`) 확인 |
 | ch5 | 5.2 트래픽 관리 | ✅ | 2026-07-19 | Gateway API(`gke-l7-regional-external-managed`), Gateway+HTTPRoute+HealthCheckPolicy 배포. proxy-only 서브넷 없어 생성 필요했음. 외부 IP로 /health,/id,/version 확인 |
 | ch5 | 5.3 무중단 배포 | ✅ | 2026-07-19 | Argo Rollouts v1.9.1 설치, Deployment→Rollout(Blue/Green) 전환, CI sed 대상을 rollout.yaml로 갱신, api:v0.2.0 배포로 auto-promote(30s) 동작 확인 |
-| ch6 | 6.1 캐시 | ⬜ | | |
+| ch6 | 6.1 캐시 | ✅ | 2026-07-20 | Valkey(standalone) 설치, 인메모리 카운터→Valkey INCR로 교체. ch6 CPU 예산 확보를 위해 replicas 2→1 선제 축소(B/G) |
 | ch6 | 6.2 시크릿 관리 | ⬜ | | |
 | ch6 | 6.3 Canary 전환 | ⬜ | | |
 | ch7 | 7.2 멀티 노드풀 | ⬜ | | |
@@ -49,13 +49,15 @@
 | 알림 (4.4) | PrometheusRule + Alertmanager(kube-prometheus-stack 기본값) | Grafana Alerting, Cloud Monitoring 알림 정책 | 4.2에서 Alertmanager가 이미 함께 설치되어 추가 리소스 없이 바로 사용 가능, PrometheusRule이 CRD 매니페스트라 `k8s/monitoring/`에 버전관리 및 ArgoCD 배포 가능, Grafana Alerting·Cloud Monitoring은 UI/콘솔 설정 위주라 GitOps 원칙에서 벗어남 |
 | 외부 트래픽 관리 (5.2) | Gateway API | Ingress NGINX, Istio, Traefik | GKE Standard에서 별도 Controller 설치 없이 네이티브로 지원(`gke-l7-regional-external-managed`), Gateway(인프라)/HTTPRoute(앱) 역할 분리, Ingress를 대체하는 K8s 공식 표준, 5.3 Blue/Green의 HTTPRoute backendRefs 트래픽 분배와 연동 |
 | 무중단 배포 (5.3) | Argo Rollouts — Blue/Green | Flagger, K8s native Rolling Update | 같은 Argo 생태계라 ArgoCD와 통합이 매끄럽고 Rollout 상태를 UI에서 확인 가능, CRD 기반 YAML 선언이라 GitOps 호환, 6장에서 Canary로 전략을 바꿀 때 Rollout CRD만 수정하면 되는 점진적 진화 경로, 2 replica 규모라 Blue/Green의 리소스 2배 부담이 크지 않음 |
+| 캐시/상태 공유 (6.1) | Valkey | Redis, Memcached, DragonflyDB | INCR로 원자적 순차 ID 생성 필요 + Pod 재시작 후에도 카운터 유지(영속성) 필요 → Memcached는 INCR 미지원·영속성 없어 탈락. Redis는 2024년 SSPL 라이선스 전환으로 상용 제한 있음. Valkey는 Redis 포크로 100% 호환되면서 BSD 라이선스 유지, Bitnami 차트로 간편 설치, e2-medium 2노드 환경에서 50m 경량 운영 가능 |
 
 ## 현재 버전
 
 | 컴포넌트 | 버전 | 변경 이력 |
 |---------|------|----------|
 | Go | 1.25 | 초기 설정 (2.6) |
-| Notiflex 이미지 | api:v0.2.0 | CI-CD e2e 테스트로 배포, 이후 태그는 git SHA 기반 (3.5). Blue/Green 전환 후 v0.2.0으로 배포 테스트, `/version` 응답 갱신 (5.3) |
+| Notiflex 이미지 | api:sha-ccd6ad1 (내부 버전 v0.3.0) | CI-CD e2e 테스트로 배포, 이후 태그는 git SHA 기반 (3.5). Blue/Green 전환 후 v0.2.0으로 배포 테스트, `/version` 응답 갱신 (5.3). Valkey INCR로 ID 생성 방식 전환, `/version` 응답 v0.3.0으로 갱신 (6.1) |
+| Valkey | chart 6.2.0 (appVersion 9.1.0) | standalone 모드 최초 설치, `notiflex` 네임스페이스 (6.1) |
 | ArgoCD | v3.4.5 | 초기 설치 (3.2) |
 | kube-prometheus-stack | chart 87.15.1 | 초기 설치, requests 축소 (4.2) |
 | Loki | 3.6.7 (chart 7.0.0, SingleBinary) | 초기 설치 (4.3) |
@@ -65,6 +67,8 @@
 | OTel SDK | | |
 
 ## 현재 리소스
+
+✅ **2026-07-20 ch6.1 Valkey 캐시 도입**: `shared/resource-budget.md`가 경고한 ch6 CPU 위험 구간(노드 CPU requests 99%/79%로 이미 타이트) 확인 후, Valkey 설치 전 `k8s/smb/rollout.yaml`의 `replicas: 2 → 1`로 선제 축소(Git 경유, ArgoCD `argocd.argoproj.io/refresh=hard`로 강제 동기화). `helm install valkey bitnami/valkey -n notiflex`(standalone, resourcesPreset=none, requests cpu 50m/mem 64Mi) 설치 → `valkey-primary-0` Running, Secret 이름 `valkey`/key `valkey-password` 확인(가드레일 문서와 일치). `app/main.go`의 인메모리 `atomic.Uint64` 카운터를 `github.com/valkey-io/valkey-go` 클라이언트의 `INCR notiflex:id`로 교체, 10회/3초 간격 연결 재시도 로직 추가, `Dockerfile`을 `COPY go.mod go.sum ./`로 갱신. `git push` → CI가 `api:sha-ccd6ad1` 빌드/푸시 및 `rollout.yaml` 이미지 태그 자동 갱신 → ArgoCD Blue/Green 배포(Synced/Healthy). 검증: `/id` 호출로 `id: 1→2→3` 순차 증가 확인, Pod을 강제 삭제(`kubectl delete pod`) 후 재기동된 새 Pod에서 `/id` 호출 시 `id: 4`로 이어져 카운터가 Valkey에 영속되는 것(인메모리였다면 1로 리셋)을 확인. B/G replicas는 1로 유지 중이며, ch7에서 노드풀 추가 후 2로 복원 예정.
 
 ✅ **2026-07-19 재개 완료 — GCP 리소스 전체 재생성 (ch4까지)**: 2026-07-12 정리 이후 비어있던 `my-gitaiops` 프로젝트에 ch2.5~ch4.4 리소스를 처음부터 재생성.
   - GKE `notiflex-cluster`(asia-northeast3-a, e2-medium Spot ×2, disk 30GB, Gateway API standard) RUNNING, 컨텍스트 `gke-sysnet4admin_book_gitaiops`로 등록
