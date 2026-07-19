@@ -24,6 +24,7 @@
 | ch6 | 6.1 캐시 | ✅ | 2026-07-20 | Valkey(standalone) 설치, 인메모리 카운터→Valkey INCR로 교체. ch6 CPU 예산 확보를 위해 replicas 2→1 선제 축소(B/G) |
 | ch6 | 6.2 시크릿 관리 | ✅ | 2026-07-20 | Workload Identity + GKE Secret Manager CSI로 Valkey 비밀번호를 파일 마운트 방식으로 전환. CPU 부족으로 Alertmanager/Grafana/operator/kube-state-metrics 임시 축소(replicas 0) — ch7.2 노드풀 추가 후 복원 필요 |
 | ch6 | 6.3 Canary 전환 | ✅ | 2026-07-20 | `rollout.yaml` strategy `blueGreen`→`canary`(20→50→80→100%, 각 30초 pause) 전환, api:v0.4.0 배포로 e2e 검증 |
+| ch6 | 6.4 아키텍처 스냅샷 | ✅ | 2026-07-20 | `claude-context/architecture.md` 신규 작성 — 3층 지식 구조(CLAUDE.md/claude-context/ADR), 클러스터 토폴로지, 컴포넌트 다이어그램, 배포 파이프라인, 관측 가능성, 주요 네임스페이스 표 |
 | ch7 | 7.2 멀티 노드풀 | ⬜ | | |
 | ch7 | 7.3 App of Apps | ⬜ | | |
 | ch7 | 7.4 멀티테넌시 | ⬜ | | |
