@@ -12,7 +12,7 @@ import (
 )
 
 // version은 배포 버전을 나타낸다. 빌드 시 이미지 태그와 함께 갱신한다.
-const version = "v0.3.0"
+const version = "v0.4.0"
 
 // valkeyClient는 Pod 간 공유되는 ID 카운터를 보관하는 Valkey 클라이언트다.
 var valkeyClient valkey.Client
