@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: notiflex-api
-          image: asia-northeast3-docker.pkg.dev/my-gitaiops/notiflex/api:v0.2.0
+          image: asia-northeast3-docker.pkg.dev/my-gitaiops/notiflex/api:sha-0d72ccf
           ports:
             - containerPort: 8080
           readinessProbe:
