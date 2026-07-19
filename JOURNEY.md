@@ -71,6 +71,16 @@
 
 ## 현재 리소스
 
+⚠️ **2026-07-20 비용 절감을 위해 GCP 리소스 전체 정리됨** (ch6.4 완료 시점 → 재정리). 저장소 코드(`app/`, `k8s/`, `helm-values/`, `argocd/`, `claude-context/`)는 유지.
+  - 삭제 순서: GKE 클러스터 `notiflex-cluster`(async 삭제, Compute 인스턴스 2개 + 노드 부트 디스크 2개는 클러스터 삭제 시 함께 정리됨) → IAM 바인딩 제거(`notiflex-secrets@`의 WI 바인딩, `github-ci@`의 프로젝트 레벨 `artifactregistry.writer`) → Secret Manager `valkey-password` 삭제(binding도 함께 제거됨) → Artifact Registry `notiflex` 삭제(이미지 전부 포함) → Service Account `notiflex-secrets@my-gitaiops.iam.gserviceaccount.com`, `github-ci@my-gitaiops.iam.gserviceaccount.com` 삭제
+  - **Gateway API 고아 리소스 정리** (클러스터 삭제 후에도 자동 삭제되지 않음, ch5.2에서 생성): forwarding-rule, target-http-proxy, url-map, address, backend-service ×3(notiflex-api/gw-serve404/gw-serve500), health-check ×3을 의존성 역순으로 수동 삭제
+  - **PVC 고아 Persistent Disk 정리** (ch6.1 Valkey standalone PVC, 클러스터 삭제로 자동 삭제되지 않음): `pvc-72288e44-3b66-4054-b552-8a5d6247d502` 삭제
+  - 로컬 kubeconfig 컨텍스트/클러스터/유저 `gke-sysnet4admin_book_gitaiops` 삭제 (다른 로컬 컨텍스트는 유지)
+  - **전체 스윕 검증 완료**: GKE 클러스터·Artifact Registry·Service Account(notiflex/github-ci)·Secret Manager·Compute 인스턴스·Persistent Disk·Forwarding Rule·Target Proxy·URL Map·Address·Backend Service·Health Check → 전부 없음 확인. (`Compute Engine default SA`는 시스템 계정으로 유지)
+  - **재점검에서 발견 — GCS 버킷 고아 리소스** (가드레일/resource-budget.md에 명시 안 된 신규 발견 사항): 1차 정리 후 독자 요청으로 리전 제한 없이 프로젝트 전체를 재스윕한 결과 `gs://my-gitaiops_cloudbuild`(Cloud Build가 CI 빌드마다 자동 생성하는 소스 아카이브 버킷, `source/*.tgz` 3개, 4KB 미만) 발견 → 버킷째로 삭제. 이 버킷은 2026-07-12에도 한 번 정리된 이력이 있는데(당시엔 가드레일에 없던 항목으로 발견) 이후 CI 실행마다 자동 재생성되므로, **다음 정리 때도 `gcloud storage ls --project=<PROJECT>`로 별도 확인이 필요하다** — GKE/Artifact Registry 삭제 체크리스트에는 포함되지 않는 리소스.
+  - ⚠️ **재개 시 주의** ([[project_gcp_resource_cleanup_cycle]]): GitHub Secret `GCP_SA_KEY`는 이번 정리로 삭제되지 않고 예전 값 그대로 남아 있다. `github-ci` SA를 재생성하기 전까지는 값이 유효하지 않으므로, 다음 재개 시 CI를 처음 돌리기 전 SA 재생성(`roles/artifactregistry.writer` 재부여) 및 `gh secret set GCP_SA_KEY` 갱신이 필요하다.
+> 재개 시 다음 진행 지점: ch7.2(멀티 노드풀)부터 시작 가능. ch2.5~ch6.4 리소스를 처음부터 재생성해야 한다.
+
 ✅ **2026-07-20 ch6.3 Canary 전환**: `k8s/smb/rollout.yaml`의 `strategy.blueGreen`을 `strategy.canary`(canaryService `notiflex-api-preview`, stableService `notiflex-api`, steps 20→50→80→100%·각 30초 pause)로 변경 → git push 후 `kubectl delete rollout` → ArgoCD `refresh=hard`로 전략 전환 적용. `app/main.go` 버전을 v0.4.0으로 올려 CI가 `api:sha-b2940b7` 빌드·`rollout.yaml` 이미지 자동 갱신 → e2e 테스트 진행. CPU 한계(2 노드 모두 requests 근접)로 신규 Canary Pod이 `Insufficient cpu`로 Pending → `kubectl argo rollouts promote --full` + 구 ReplicaSet `replicas=0`으로 해결(가드레일 트러블슈팅 항목과 동일 패턴). 최종 Rollout Healthy, `/version` 응답 v0.4.0 확인. preview Service는 Canary의 canaryService로 계속 재사용 중이므로 삭제 금지.
 
 ⚠️ **2026-07-20 ch6.2 Secret 관리 도입 — CPU 한계 도달, 모니터링 일부 컴포넌트 임시 비활성화**: GKE Workload Identity(클러스터+노드풀) + `--enable-secret-manager` CSI addon 활성화. `gcloud secrets create valkey-password`로 GCP Secret Manager에 저장(`printf`로 개행 없이), `notiflex-secrets` GSA 생성 후 `roles/secretmanager.secretAccessor` 부여, `notiflex` 네임스페이스의 `notiflex-api` KSA를 Workload Identity로 GSA와 바인딩. `k8s/smb/secretproviderclass.yaml`(provider: gke) + `k8s/smb/serviceaccount.yaml` 추가, `rollout.yaml`에 CSI 볼륨(`secrets-store-gke.csi.k8s.io`) 마운트 및 `VALKEY_PASSWORD_FILE` 환경변수 추가. `app/main.go`가 마운트된 파일에서 비밀번호를 읽도록 변경(`secretObjects` 미사용 — K8s Secret 리소스를 만들지 않아 노출 표면 최소화).
